@@ -19,3 +19,7 @@ async def consume_message(queue_name, timeout=0):
         _, msg = result
         msg = msg.decode()
     return msg
+
+
+async def close_redis_connection():
+    await conn.aclose()

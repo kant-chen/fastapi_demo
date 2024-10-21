@@ -3,7 +3,7 @@ from asyncio.queues import Queue
 from signal import SIGINT, SIGTERM
 import random
 
-from core.app_queue import consume_message, conn
+from core.app_queue import consume_message, close_redis_connection
 from core.config import settings
 
 logger = settings.APP_LOGGER
@@ -77,7 +77,7 @@ async def start_worker():
         shut_off_program = True
         await asyncio.sleep(2)
         logger.info("closing redis connection")
-        await conn.aclose()
+        await close_redis_connection()
         logger.info("waiting for task schedulers to complete")
         await event_pull_message.wait()
         await event_schduler.wait()
