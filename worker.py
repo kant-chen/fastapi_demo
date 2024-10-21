@@ -40,9 +40,8 @@ async def pull_messages_from_redis(shutdown_event: asyncio.Event):
         else:
             await asyncio.sleep(1)
 
-    logger.info("setting shutdown_event for pull_messages_from_redis")
+    logger.info("stopping coroutine: pull_messages_from_redis")
     shutdown_event.set()
-    logger.info("shutdown_event for pull_messages_from_redis is set")
 
 async def schedule_task_to_worker(shutdown_event: asyncio.Event):
     global concuruent_task_count
@@ -59,10 +58,8 @@ async def schedule_task_to_worker(shutdown_event: asyncio.Event):
 
         await asyncio.sleep(1)  # Give up control to trigger tasks to run
 
-    logger.info("setting shutdown_event for schedule_task_to_worker")
+    logger.info("stopping coroutine: schedule_task_to_worker")
     shutdown_event.set()
-    logger.info("shutdown_event for schedule_task_to_worker is set")
-    
 
 
 async def start_worker():
@@ -72,50 +69,33 @@ async def start_worker():
         task_message_receiver = asyncio.create_task(pull_messages_from_redis(event_pull_message))
         task_scheduler = asyncio.create_task(schedule_task_to_worker(event_schduler))
         await asyncio.gather(task_message_receiver, task_scheduler)
-    # except asyncio.CancelledError:
     finally:
         logger.info("Gracefully shuttig down")
-        # TODO: When CancelledError is raised, stop task_message_receiver and task_scheduler
-        #   and wait for all existing tasks to finish
         global shut_off_program
         shut_off_program = True
         await asyncio.sleep(2)
         logger.info("closing redis connection")
         await conn.aclose()
-        logger.info("redis conn closed")
+        logger.info("waiting for task schedulers to complete")
         await event_pull_message.wait()
         await event_schduler.wait()
-        logger.info(f"all events are sets")
-        # wait again to let them exit from while loop
-        # await asyncio.gather(task_message_receiver, task_scheduler)
-        # wait for all scheduled tasks to complete
-        # all_tasks_except_current = asyncio.all_tasks().difference(asyncio.current_task())
-        logger.info(f"all_task_except_current? {asyncio.all_tasks() - {asyncio.current_task()}}")
-        # await asyncio.gather(*asyncio.all_tasks() - {asyncio.current_task()})
+        logger.info(f"exitting start_worker")
 
 
-def switch_off():
+def shutdown_gracefully():
     global shut_off_program
     shut_off_program = True
-    logger.info("switch_off() is called")
+    logger.info("shutdown_gracefully() is called")
 
 
 async def main():
     task = asyncio.create_task(start_worker())
     loop = asyncio.get_event_loop()
     for signal in [SIGINT, SIGTERM]:
-        loop.add_signal_handler(signal, switch_off)
-    # try:
+        loop.add_signal_handler(signal, shutdown_gracefully)
     await task
     await asyncio.gather(*asyncio.all_tasks() - {asyncio.current_task()})
-    # except KeyboardInterrupt:
-    
-        # Trigger start_worker to raise CancelledError
-        # task.cancel()
 
 if __name__ == "__main__":
-    # try:
     asyncio.run(main())
-    # except KeyboardInterrupt:
-    #     # exit(0)
         
