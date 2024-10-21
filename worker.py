@@ -1,6 +1,7 @@
 import asyncio
 from asyncio.queues import Queue
 from signal import SIGINT, SIGTERM
+import random
 
 from core.app_queue import consume_message, conn
 from core.config import settings
@@ -16,9 +17,10 @@ async def execute_task(msg):
     global concuruent_task_count
     is_done = False
     try:
-        logger.info(f"started execution: {msg} , concuruent_task_count={concuruent_task_count}")
+        logger.info(f"started execution: {msg}, concuruent_task_count={concuruent_task_count}")
         # TODO: Update task record in DB, status = processing
-        await asyncio.sleep(3)
+        # await asyncio.sleep(3)
+        await asyncio.sleep(random.randrange(1, 10))
         # TODO: Update task record in DB, status = completed
         is_done = True
     finally:
@@ -30,7 +32,7 @@ async def execute_task(msg):
 async def pull_messages_from_redis(shutdown_event: asyncio.Event):
     global concuruent_task_count
     while shut_off_program is False:
-        logger.info("pull_messages_from_redis")
+        logger.debug("pull_messages_from_redis")
         if worker_queue.qsize() + concuruent_task_count < settings.WORKER_QUEUE_MAXSIZE:
             message = await consume_message(settings.REDIS_QUEUE_NAME, 1)
             if message:
@@ -46,7 +48,7 @@ async def pull_messages_from_redis(shutdown_event: asyncio.Event):
 async def schedule_task_to_worker(shutdown_event: asyncio.Event):
     global concuruent_task_count
     while shut_off_program is False:
-        logger.info(f"schedule_task_to_worker, shut_off_program={shut_off_program}")
+        logger.debug(f"schedule_task_to_worker")
         tasks = []
         while worker_queue.empty() is False:
             message = await worker_queue.get()
@@ -94,6 +96,7 @@ async def main():
     for signal in [SIGINT, SIGTERM]:
         loop.add_signal_handler(signal, shutdown_gracefully)
     await task
+    logger.info("waiting for existing tasks to complete")
     await asyncio.gather(*asyncio.all_tasks() - {asyncio.current_task()})
 
 if __name__ == "__main__":
