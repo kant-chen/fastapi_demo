@@ -22,8 +22,6 @@ log_setting = {
         },
     },
     "loggers": {
-        "api_server": {"level": "INFO", "handlers": ["console"], "propagate": "no"},
-        "asyncio": {"level": "WARNING", "handlers": ["console"], "propagate": "no"}
+        "api_server": {"level": "DEBUG", "handlers": ["console"], "propagate": "no"},
     },
-    # "root": {"level": "DEBUG", "handlers": ["console", "file_handler"]},
 }
