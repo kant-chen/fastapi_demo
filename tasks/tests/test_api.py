@@ -26,3 +26,20 @@ async def test_create_task(http_client):
     response_data = response.json()
     for field in ["id", "message", "status"]:
         assert field in response_data
+
+    assert response_data["status"] == "pending"
+
+
+@pytest.mark.anyio
+async def test_cancel_task(http_client):
+    message_text = "TestMessage"
+    payload = {"message": message_text}
+    response = await http_client.post("/tasks", json=payload)
+    assert response.status_code == 200
+    response_data = response.json()
+    task_id = response_data["id"]
+    payload = {"status": "canceled"}
+    response = await http_client.patch(f"/tasks/{task_id}", json=payload)
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data["status"] == "canceled"
