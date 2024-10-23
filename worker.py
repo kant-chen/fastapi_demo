@@ -32,8 +32,7 @@ async def execute_task(task_id_in_db: str):
             f"started execution: {msg}, concuruent_task_count={concuruent_task_count}"
         )
         
-        # await asyncio.sleep(3)
-        await asyncio.sleep(random.randrange(1, 10))
+        await asyncio.sleep(3)
         
         # Update task record in DB, status = "completed"
         await update_status_in_db(db_session, task_id_in_db, "completed")
@@ -123,7 +122,6 @@ async def main():
     await task
     logger.info("waiting for existing tasks to complete")
     await asyncio.gather(*asyncio.all_tasks() - {asyncio.current_task()})
-
 
 if __name__ == "__main__":
     asyncio.run(main())
