@@ -12,12 +12,13 @@ concuruent_task_count = 0
 shut_off_program = False
 
 
-
 async def execute_task(msg):
     global concuruent_task_count
     is_done = False
     try:
-        logger.info(f"started execution: {msg}, concuruent_task_count={concuruent_task_count}")
+        logger.info(
+            f"started execution: {msg}, concuruent_task_count={concuruent_task_count}"
+        )
         # TODO: Update task record in DB, status = processing
         # await asyncio.sleep(3)
         await asyncio.sleep(random.randrange(1, 10))
@@ -25,8 +26,9 @@ async def execute_task(msg):
         is_done = True
     finally:
         concuruent_task_count -= 1
-        logger.info(f"ended execution: {msg}, concuruent_task_count={concuruent_task_count} is_done={is_done}")
-
+        logger.info(
+            f"ended execution: {msg}, concuruent_task_count={concuruent_task_count} is_done={is_done}"
+        )
 
 
 async def pull_messages_from_redis(shutdown_event: asyncio.Event):
@@ -44,6 +46,7 @@ async def pull_messages_from_redis(shutdown_event: asyncio.Event):
 
     logger.info("stopping coroutine: pull_messages_from_redis")
     shutdown_event.set()
+
 
 async def schedule_task_to_worker(shutdown_event: asyncio.Event):
     global concuruent_task_count
@@ -68,7 +71,9 @@ async def start_worker():
     event_pull_message = asyncio.Event()
     event_schduler = asyncio.Event()
     try:
-        task_message_receiver = asyncio.create_task(pull_messages_from_redis(event_pull_message))
+        task_message_receiver = asyncio.create_task(
+            pull_messages_from_redis(event_pull_message)
+        )
         task_scheduler = asyncio.create_task(schedule_task_to_worker(event_schduler))
         await asyncio.gather(task_message_receiver, task_scheduler)
     finally:
@@ -99,6 +104,6 @@ async def main():
     logger.info("waiting for existing tasks to complete")
     await asyncio.gather(*asyncio.all_tasks() - {asyncio.current_task()})
 
+
 if __name__ == "__main__":
     asyncio.run(main())
-        
