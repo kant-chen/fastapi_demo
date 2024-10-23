@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "fastapi_demo"
 
     # Redis
-    REDIS_HOST: str = "localhost"
+    REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
     REDIS_QUEUE_NAME: str = "fastapi-demo"
 
