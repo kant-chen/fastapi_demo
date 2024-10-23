@@ -1,5 +1,3 @@
-from typing import Union
-
 from fastapi import FastAPI
 from fastapi.exceptions import HTTPException
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -10,7 +8,8 @@ from core.db import get_db_session, initialize_db
 from core.app_queue import push_message
 from core.config import settings
 from tasks.schemas import TaskSchema, TaskCreateSchema, TaskUpdateSchema
-from tasks.query import create_message_task, get_task_by_id
+from tasks.query import create_message_task, update_status_in_db
+from tasks.exceptions import TaskNotfound, TaskStatusUpdateNotAllowed
 
 app = FastAPI()
 logger = settings.APP_LOGGER
@@ -28,8 +27,7 @@ async def enqueue_message(
     message = await create_message_task(db_session, message_to_put)
     await db_session.commit()
 
-    message_to_queue = ",".join([message.id, message.message])
-    background_tasks.add_task(push_message, settings.REDIS_QUEUE_NAME, message_to_queue)
+    background_tasks.add_task(push_message, settings.REDIS_QUEUE_NAME, message.id)
     response_obj = TaskSchema.model_validate(message)
     return response_obj
 
@@ -41,17 +39,17 @@ async def update_task(
     request_data: TaskUpdateSchema,
     db_session: AsyncSession = Depends(get_db_session),
 
-):
-    message = await get_task_by_id(db_session, task_id)
-    if message is None:
+) -> TaskSchema:
+    try:
+        task_in_db = await update_status_in_db(db_session, task_id, request_data.status)
+    except TaskNotfound:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    if message.status != "pending":
+    except TaskStatusUpdateNotAllowed:
         raise HTTPException(status_code=400, detail="Cancel is not allowed")
 
-    message.status = request_data.status
 
-    response_obj = TaskSchema.model_validate(message)
+    response_obj = TaskSchema.model_validate(task_in_db)
     await db_session.commit()
     return response_obj
 

@@ -3,27 +3,47 @@ from asyncio.queues import Queue
 from signal import SIGINT, SIGTERM
 import random
 
+from sqlalchemy.ext.asyncio.session import AsyncSession
+
 from core.app_queue import consume_message, close_redis_connection
 from core.config import settings
+from core.db import get_db_session
+from tasks.query import update_status_in_db
+from tasks.exceptions import TaskNotfound, TaskStatusUpdateNotAllowed
+
 
 logger = settings.APP_LOGGER
 worker_queue = Queue(maxsize=settings.WORKER_QUEUE_MAXSIZE)
 concuruent_task_count = 0
 shut_off_program = False
 
-
-async def execute_task(msg):
+async def execute_task(task_id_in_db: str):
     global concuruent_task_count
     is_done = False
+    db_generator = get_db_session()
+    db_session: AsyncSession = await anext(db_generator)
+    msg = None
     try:
+        # Update task record in DB, status = "processing"
+        task_db_obj = await update_status_in_db(db_session, task_id_in_db, "processing")
+        await db_session.commit()
+        msg = task_db_obj.message
         logger.info(
             f"started execution: {msg}, concuruent_task_count={concuruent_task_count}"
         )
-        # TODO: Update task record in DB, status = processing
+        
         # await asyncio.sleep(3)
         await asyncio.sleep(random.randrange(1, 10))
-        # TODO: Update task record in DB, status = completed
+        
+        # Update task record in DB, status = "completed"
+        await update_status_in_db(db_session, task_id_in_db, "completed")
+        await db_session.commit()
         is_done = True
+    except TaskNotfound:
+        logger.error(f"Task ID: {task_id_in_db} not found in DB, skipping")
+    except TaskStatusUpdateNotAllowed:
+        logger.error(f"Task ID: {task_id_in_db} not in a correct state.")
+
     finally:
         concuruent_task_count -= 1
         logger.info(
@@ -54,8 +74,8 @@ async def schedule_task_to_worker(shutdown_event: asyncio.Event):
         logger.debug(f"schedule_task_to_worker")
         tasks = []
         while worker_queue.empty() is False:
-            message = await worker_queue.get()
-            task = asyncio.create_task(execute_task(message))
+            task_id_in_db: str = await worker_queue.get()
+            task = asyncio.create_task(execute_task(task_id_in_db))
             tasks.append(task)
         if len(tasks) > 0:
             concuruent_task_count += len(tasks)
