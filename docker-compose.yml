@@ -1,0 +1,58 @@
+version: "3.7"
+
+services:
+  db:
+    image: postgres:16.4-alpine
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fastapi_demo
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "10"
+        max-size: "1024k"
+    volumes:
+      - dbdata:/var/lib/postgresql/data/
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - app_net
+  
+  api-server:
+    image: fastapi-demo
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+      - redis
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "10"
+        max-size: "1024k"
+    environment:
+      - NUMBER_WORKERS=${NUMBER_WORKERS:-2}
+    networks:
+      - app_net
+
+  redis:
+    image: redis:7.4-alpine
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "10"
+        max-size: "1024k"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app_net
+
+networks:
+  app_net:
+
+volumes:
+  dbdata:
+  redis-data:
