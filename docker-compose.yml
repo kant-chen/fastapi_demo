@@ -37,6 +37,7 @@ services:
         max-size: "1024k"
     environment:
       - NUMBER_WORKERS=${NUMBER_WORKERS:-2}
+      - PYTHONPATH=/home/apps
     networks:
       - app_net
 
