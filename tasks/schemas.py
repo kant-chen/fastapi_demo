@@ -2,13 +2,20 @@ from pydantic import BaseModel, Field, ConfigDict
 import datetime
 
 
-class EnqueueRequest(BaseModel):
+class TaskCreateSchema(BaseModel):
     message: str = Field(
         title="the message text",
         description="the message text",
         example="Hello"
     )
 
+class TaskUpdateSchema(BaseModel):
+    status: str = Field(
+        title="status",
+        description="processing status",
+        example="pending",
+        pattern=r"^canceled$",
+    )
 
 class TaskSchema(BaseModel):
     class Config:
